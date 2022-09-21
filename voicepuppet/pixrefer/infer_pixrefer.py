@@ -65,17 +65,17 @@ if (__name__ == '__main__'):
     rec_saver = tf.compat.v1.train.Saver(var_list=rec_varlist)
 
     sess.run(tf.compat.v1.global_variables_initializer())
-    rec_saver.restore(sess, 'ckpt_pixrefer/pixrefernet-130000')
+    rec_saver.restore(sess, 'ckpt_pixrefer-2009/pixrefernet-130000')
 
     inputs = np.zeros([1, img_size, img_size, 6], dtype=np.float32)
     fg_inputs = np.zeros([1, img_size, img_size, 3], dtype=np.float32)
 
-    img = image_loader.get_data(os.path.join('2007_crop_pixrefer', '{:04d}.png'.format(0)))
+    img = image_loader.get_data('0000.png')
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     inputs[0, :, :, 0:3] = img[:, img_size:img_size*2, :]
     fg_inputs[0, :, :, 0:3] = img[:, :img_size, :] * img[:, img_size*2:, :]
 
-    root = r'E:\workplace\DECA\TestVideo\results'
+    root = r'/mnt/workplace/DECA/TestVideo/results'
     # root = r'E:\workplace\voicepuppet\todir'
     for index in range(0, len(os.listdir(root))):
       img = image_loader.get_data(os.path.join(root, '{:04d}'.format(index), 'orig_{:04d}_shape_images.jpg'.format(index)))
@@ -90,7 +90,8 @@ if (__name__ == '__main__'):
         # # cv2.imwrite('output/_{}.jpg'.format(index), cv2.cvtColor((frames[0,...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         jpg = cv2.cvtColor((frames[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
         alpha = cv2.cvtColor((alpha[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-        cv2.imwrite('output/_{}.jpg'.format(index), jpg)
+        rgba = np.concatenate([jpg, alpha], axis=-1)
+        cv2.imwrite('output/_{}.png'.format(index), rgba)
         # cv2.imwrite('output/alpha_{}.jpg'.format(index), alpha)
 
 
