@@ -90,7 +90,7 @@ if (__name__ == '__main__'):
         # # cv2.imwrite('output/_{}.jpg'.format(index), cv2.cvtColor((frames[0,...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         jpg = cv2.cvtColor((frames[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
         alpha = cv2.cvtColor((alpha[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-        rgba = np.concatenate([jpg, alpha], axis=-1)
+        rgba = np.concatenate([jpg, alpha[..., :1]], axis=-1)
         cv2.imwrite('output/_{}.png'.format(index), rgba)
         # cv2.imwrite('output/alpha_{}.jpg'.format(index), alpha)
 
