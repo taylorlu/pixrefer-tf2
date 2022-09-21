@@ -41,7 +41,6 @@ if (__name__ == '__main__'):
   batch_size = 1
   img_size = 512
   image_loader = ImageLoader()
-  root = 'todir'
   bg_img = np.zeros([img_size, img_size, 3]).astype(np.float32)
 
   with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))) as sess:
@@ -76,10 +75,8 @@ if (__name__ == '__main__'):
     fg_inputs[0, :, :, 0:3] = img[:, :img_size, :] * img[:, img_size*2:, :]
 
     root = r'/mnt/workplace/DECA/TestVideo/results'
-    # root = r'E:\workplace\voicepuppet\todir'
     for index in range(0, len(os.listdir(root))):
       img = image_loader.get_data(os.path.join(root, '{:04d}'.format(index), 'orig_{:04d}_shape_images.jpg'.format(index)))
-      # img = image_loader.get_data(os.path.join(root, '{:04d}.jpg'.format(index)))[:, 512:512*2, :]
       if (img is not None):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         inputs[0, ..., 3:6] = img
@@ -87,18 +84,7 @@ if (__name__ == '__main__'):
         frames, last, alpha = sess.run([vid2vid_nodes['Outputs'], vid2vid_nodes['Outputs_FG'], vid2vid_nodes['Alphas']], 
           feed_dict={inputs_holder: inputs, fg_inputs_holder: fg_inputs, targets_holder: bg_img[np.newaxis, ...]})
 
-        # # cv2.imwrite('output/_{}.jpg'.format(index), cv2.cvtColor((frames[0,...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
         jpg = cv2.cvtColor((frames[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
         alpha = cv2.cvtColor((alpha[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
         rgba = np.concatenate([jpg, alpha[..., :1]], axis=-1)
-        cv2.imwrite('output/_{}.png'.format(index), rgba)
-        # cv2.imwrite('output/alpha_{}.jpg'.format(index), alpha)
-
-
-  #     cv2.imwrite('output/_{}.jpg'.format(i), cv2.cvtColor((frames[0,...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
-
-  # cmd = 'ffmpeg -i output/_%d.jpg -i ' + audio_file + ' -c:v libx264 -c:a aac -strict experimental -y temp2.mp4'
-  # subprocess.call(cmd, shell=True)
-
-  # cmd = 'ffmpeg -i output/%d.jpg -i ' + audio_file + ' -c:v libx264 -c:a aac -strict experimental -y temp.mp4'
-  # subprocess.call(cmd, shell=True)
+        cv2.imwrite('output/{:04d}.png'.format(index), rgba)
