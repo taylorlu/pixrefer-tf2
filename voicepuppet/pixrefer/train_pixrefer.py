@@ -59,7 +59,7 @@ if (__name__ == '__main__'):
   params.add_hparam('max_to_keep', 2)
   params.add_hparam('save_dir', 'ckpt_pixrefer')
   params.add_hparam('save_name', 'pixrefernet')
-  params.add_hparam('save_step', 5000)
+  params.add_hparam('save_step', 10000)
   params.add_hparam('summary_step', 100)
   params.add_hparam('summary_dir', 'log/summary_pixrefer')
   params.batch_size = batch_size
