@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
 import os
 from optparse import OptionParser
 import logging
 from pixrefer import PixReferNet
 from generator.generator import PixReferDataGenerator
+tf.disable_v2_behavior()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -50,21 +51,6 @@ if (__name__ == '__main__'):
   tf.compat.v1.train.start_queue_runners(sess=sess)
 
   train_iter = tf.compat.v1.data.make_one_shot_iterator(train_dataset)
-
-  # inputs, fg_inputs, targets, masks = sess.run(train_iter.get_next())
-  # inp1 = cv2.cvtColor((inputs[0,...,0:3]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-  # inp2 = cv2.cvtColor((inputs[0,...,3:6]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-  # fg1 = cv2.cvtColor((fg_inputs[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-  # targets1 = cv2.cvtColor((targets[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-  # masks1 = cv2.cvtColor((masks[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-
-  # cv2.imwrite('to/inp1.jpg', inp1)
-  # cv2.imwrite('to/inp2.jpg', inp2)
-  # cv2.imwrite('to/fg1.jpg', fg1)
-  # cv2.imwrite('to/targets1.jpg', targets1)
-  # cv2.imwrite('to/masks1.jpg', masks1)
-  # sys.exit(0)
-
 
   ### Vid2VidNet setting
   vid2vidnet = PixReferNet(config_path)
