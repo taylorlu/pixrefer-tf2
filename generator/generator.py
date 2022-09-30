@@ -164,9 +164,9 @@ class PixReferDataGenerator(DataGenerator):
 
       for i in range(img_count):
         rnd_idx = random.randint(0, img_count-1)
-        # rsize = random.randint(int(self.img_size*self.crop_ratio), self.img_size)
-        # rx = random.randint(0, self.img_size - rsize)
-        # ry = random.randint(0, self.img_size - rsize)
+        rsize = random.randint(int(self.img_size*self.crop_ratio), self.img_size)
+        rx = random.randint(0, self.img_size - rsize)
+        ry = random.randint(0, self.img_size - rsize)
 
         example_img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(rnd_idx)))
         example_img = cv2.cvtColor(example_img, cv2.COLOR_BGR2RGB)
@@ -174,8 +174,8 @@ class PixReferDataGenerator(DataGenerator):
                                       example_img[:, self.img_size:self.img_size*2, :], 
                                       example_img[:, self.img_size*2:, :]], 
                                       axis=-1)
-        # example_img = example_img[rx:rsize+rx, ry:rsize+ry, :]
-        # example_img = cv2.resize(example_img, (self.img_size, self.img_size))
+        example_img = example_img[rx:rsize+rx, ry:rsize+ry, :]
+        example_img = cv2.resize(example_img, (self.img_size, self.img_size))
         example_img = np.concatenate([example_img[:, :, :3], 
                                       example_img[:, :, 3:6], 
                                       example_img[:, :, 6:]], 
@@ -188,8 +188,8 @@ class PixReferDataGenerator(DataGenerator):
         img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(i)))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = np.concatenate([img[:, :self.img_size, :], img[:, self.img_size:self.img_size*2, :], img[:, self.img_size*2:, :]], axis=-1)
-        # img = img[rx:rsize+rx, ry:rsize+ry, :]
-        # img = cv2.resize(img, (self.img_size, self.img_size))
+        img = img[rx:rsize+rx, ry:rsize+ry, :]
+        img = cv2.resize(img, (self.img_size, self.img_size))
         img = np.concatenate([img[:, :, :3], img[:, :, 3:6], img[:, :, 6:]], axis=1)
 
         imgs = []
