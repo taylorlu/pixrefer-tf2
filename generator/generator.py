@@ -163,12 +163,12 @@ class PixReferDataGenerator(DataGenerator):
       img_count = int(img_count)
 
       for i in range(img_count):
-        rnd_idx = random.randint(0, img_count-1)
+        select_idx = random.choice([j for j in [i-5, i-4, i-3, i-2, i-1, i+1, i+2, i+3, i+4, i+5] if j>=0 and j<img_count])
         rsize = random.randint(int(self.img_size*self.crop_ratio), self.img_size)
         rx = random.randint(0, self.img_size - rsize)
         ry = random.randint(0, self.img_size - rsize)
 
-        example_img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(rnd_idx)))
+        example_img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(select_idx)))
         example_img = cv2.cvtColor(example_img, cv2.COLOR_BGR2RGB)
         example_img = np.concatenate([example_img[:, :self.img_size, :], 
                                       example_img[:, self.img_size:self.img_size*2, :], 
