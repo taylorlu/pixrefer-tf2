@@ -163,7 +163,7 @@ class PixReferDataGenerator(DataGenerator):
       img_count = int(img_count)
 
       for i in range(img_count):
-        select_idx = random.choice([j for j in [i-5, i-4, i-3, i-2, i-1, i+1, i+2, i+3, i+4, i+5] if j>=0 and j<img_count])
+        select_idx = random.choice([j for j in [i-4, i-3, i-2, i-1, i+1, i+2, i+3, i+4] if j>=0 and j<img_count])
         rsize = random.randint(int(self.img_size*self.crop_ratio), self.img_size)
         rx = random.randint(0, self.img_size - rsize)
         ry = random.randint(0, self.img_size - rsize)
