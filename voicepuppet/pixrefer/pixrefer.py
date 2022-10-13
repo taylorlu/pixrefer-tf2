@@ -276,34 +276,52 @@ class PixReferNet(ModelBuilder):
 
       return layers[-1]
 
-    nodes = {}
-    with tf.compat.v1.variable_scope("generator"):
-      output = create_generator(inputs, fg_inputs[..., :3], generator_outputs_channels=4)
-      rgb = output[:,:,:,:3]
-      alpha = (output[:,:,:,3:]+1)/2
-      alpha = tf.tile(alpha, [1,1,1,3])
-      output = rgb * alpha + targets * (1 - alpha)
-      output_fg = rgb * alpha + alpha - 1
-
-      nodes.update({'Outputs': output})
-      nodes.update({'Alphas': alpha})
-      nodes.update({'Outputs_FG': output_fg})
-
     if(trainable):
+      nodes = {'Outputs': [], 'Alphas': [], 'Outputs_FG': []}
+      with tf.compat.v1.variable_scope("generator"):
+        output = create_generator(inputs[..., :6], fg_inputs[..., :3], generator_outputs_channels=4)
+        rgb = output[:,:,:,:3]
+        alpha = (output[:,:,:,3:]+1)/2
+        alpha = tf.tile(alpha, [1,1,1,3])
+        output = rgb * alpha + targets[..., :3] * (1 - alpha)
+        output_fg = rgb * alpha + alpha - 1
+        nodes['Outputs'].append(output)
+        nodes['Alphas'].append(alpha)
+        nodes['Outputs_FG'].append(output_fg)
+
+      for cycle in range(2):
+        with tf.compat.v1.variable_scope("generator", reuse=True):
+          output = create_generator(inputs[..., 3*(cycle+1):3*(cycle+3)], output_fg, generator_outputs_channels=4)
+          rgb = output[:,:,:,:3]
+          alpha = (output[:,:,:,3:]+1)/2
+          alpha = tf.tile(alpha, [1,1,1,3])
+          output = rgb * alpha + targets[..., 3*(cycle+1):3*(cycle+2)] * (1 - alpha)
+          output_fg = rgb * alpha + alpha - 1
+          nodes['Outputs'].append(output)
+          nodes['Alphas'].append(alpha)
+          nodes['Outputs_FG'].append(output_fg)
+
       # create two copies of discriminator, one for real pairs and one for fake pairs
       # they share the same underlying variables
       with tf.compat.v1.name_scope("real_discriminator"):
         with tf.compat.v1.variable_scope("discriminator"):
-          predict_real = create_discriminator(inputs[..., 3:], fg_inputs[..., 3:])
-        with tf.compat.v1.variable_scope("discriminator", reuse=True):
-          predict_real2 = create_discriminator(inputs[..., :3], fg_inputs[..., :3])
-          predict_real = (predict_real + predict_real2)/2
-          nodes.update({'Predict_real': predict_real})
+          predict_real = create_discriminator(inputs[..., :3], fg_inputs[..., :3])
+        for cycle in range(3):
+          with tf.compat.v1.variable_scope("discriminator", reuse=True):
+            predict_real += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], fg_inputs[..., 3*(cycle+1):3*(cycle+2)])
+        predict_real /= 4
+        nodes.update({'Predict_real': predict_real})
 
       with tf.compat.v1.name_scope("fake_discriminator"):
-        with tf.compat.v1.variable_scope("discriminator", reuse=True):
-          predict_fake = create_discriminator(inputs[..., 3:], output_fg)
-          nodes.update({'Predict_fake': predict_fake})
+        predict_fake = None
+        for cycle in range(3):
+          with tf.compat.v1.variable_scope("discriminator", reuse=True):
+            if(predict_fake is None):
+              predict_fake = create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs_FG'][cycle])
+            else:
+              predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs_FG'][cycle])
+        predict_fake /= 3
+        nodes.update({'Predict_fake': predict_fake})
 
       # with tf.name_scope("real_target_discriminator"):
       #   with tf.variable_scope("target_discriminator"):
@@ -317,8 +335,14 @@ class PixReferNet(ModelBuilder):
 
       with tf.compat.v1.name_scope("vgg_perceptual"):
         with slim.arg_scope(vgg.vgg_arg_scope()):
+          tmp1 = tf.transpose(fg_inputs[..., 3:], [0, 3, 1, 2])
+          tmp1 = tf.reshape(tmp1, [-1, 3, 512, 512])
+          tmp1 = tf.transpose(tmp1, [0, 2, 3, 1])
+          tmp2 = tf.transpose(tf.concat(nodes['Outputs_FG'], axis=-1), [0, 3, 1, 2])
+          tmp2 = tf.reshape(tmp2, [-1, 3, 512, 512])
+          tmp2 = tf.transpose(tmp2, [0, 2, 3, 1])
 
-          f1, f2, f3, f4, exclude = vgg.vgg_16(tf.concat([fg_inputs[..., 3:], output_fg], axis=0))
+          f1, f2, f3, f4, exclude = vgg.vgg_16(tf.concat([tmp1, tmp2], axis=0))
           gen_f, img_f = tf.split(f3, 2, 0)
           content_loss = tf.nn.l2_loss(gen_f - img_f) / tf.cast(tf.size(input=gen_f), dtype=tf.float32)
 
@@ -326,6 +350,20 @@ class PixReferNet(ModelBuilder):
           init_fn = slim.assign_from_checkpoint_fn(self.vgg_model_path, vgg_vars)
           init_fn(self.sess)
           nodes.update({'Perceptual_loss': content_loss})
+
+    else:
+      nodes = {}
+      with tf.compat.v1.variable_scope("generator"):
+        output = create_generator(inputs, fg_inputs[..., :3], generator_outputs_channels=4)
+        rgb = output[:,:,:,:3]
+        alpha = (output[:,:,:,3:]+1)/2
+        alpha = tf.tile(alpha, [1,1,1,3])
+        output = rgb * alpha + targets * (1 - alpha)
+        output_fg = rgb * alpha + alpha - 1
+
+        nodes.update({'Outputs': output})
+        nodes.update({'Alphas': alpha})
+        nodes.update({'Outputs_FG': output_fg})
 
     return nodes
 
@@ -344,8 +382,8 @@ class PixReferNet(ModelBuilder):
       # abs(targets - outputs) => 0
       gen_loss_GAN = tf.reduce_mean(input_tensor=-tf.math.log(predict_fake + 1e-12))
       # gen_loss_GAN += tf.reduce_mean(-tf.log(predict_fake_target + 1e-12))
-      gen_loss_L1 = tf.reduce_mean(input_tensor=tf.abs(targets - outputs))
-      gen_loss_L1 += tf.reduce_mean(input_tensor=tf.abs(masks - alphas))
+      gen_loss_L1 = tf.reduce_mean(input_tensor=tf.abs(targets - tf.concat(outputs, axis=-1)))
+      gen_loss_L1 += tf.reduce_mean(input_tensor=tf.abs(masks - tf.concat(alphas, axis=-1)))
       perceptual_loss = tf.reduce_mean(input_tensor=perceptual_loss)
       gen_loss = gen_loss_GAN * self.gan_weight + gen_loss_L1 * self.l1_weight + 10 * perceptual_loss
       nodes.update({'Gen_loss_GAN': gen_loss_GAN})
@@ -385,7 +423,10 @@ class PixReferNet(ModelBuilder):
                                        nodes['Alphas'], 
                                        nodes['Masks'])
     nodes.update(loss_dict)
-    nodes.update({"Outputs": deprocess(nodes['Outputs'])})
+    arr = []
+    for outputs in nodes['Outputs']:
+      arr.append(deprocess(outputs))
+    nodes['Outputs'] = arr
 
     global_step = tf.Variable(0, name='global_step', trainable=False)
     lr = tf.compat.v1.train.exponential_decay(self.learning_rate, global_step,

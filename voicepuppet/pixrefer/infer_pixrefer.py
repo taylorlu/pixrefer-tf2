@@ -88,3 +88,6 @@ if (__name__ == '__main__'):
         alpha = cv2.cvtColor((alpha[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
         rgba = np.concatenate([jpg, alpha[..., :1]], axis=-1)
         cv2.imwrite('output/{:04d}.png'.format(index), rgba)
+
+        inputs[0, ..., :3] = img
+        fg_inputs[0, :, :, 0:3] = frames[0, ...]

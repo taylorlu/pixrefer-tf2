@@ -60,7 +60,7 @@ if (__name__ == '__main__'):
   params.add_hparam('save_dir', 'ckpt_pixrefer')
   params.add_hparam('save_name', 'pixrefernet')
   params.add_hparam('save_step', 10000)
-  params.add_hparam('summary_step', 100)
+  params.add_hparam('summary_step', 500)
   params.add_hparam('summary_dir', 'log/summary_pixrefer')
   params.batch_size = batch_size
   params.add_hparam('is_training', True)
@@ -91,16 +91,16 @@ if (__name__ == '__main__'):
   tf.compat.v1.summary.scalar("generator_loss_L1", train_nodes['Gen_loss_L1'])
 
   with tf.compat.v1.name_scope("inputs1_summary"):
-    tf.compat.v1.summary.image("inputs1", tf.image.convert_image_dtype(train_nodes['Inputs'][... ,3:6], dtype=tf.uint8))
+    tf.compat.v1.summary.image("inputs1", tf.image.convert_image_dtype(train_nodes['Inputs'][... ,9:12], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("targets_summary"):
-    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'], dtype=tf.uint8))
+    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,6:9], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("outputs_summary"):
-    tf.compat.v1.summary.image("outputs", tf.image.convert_image_dtype(train_nodes['Outputs'], dtype=tf.uint8))
+    tf.compat.v1.summary.image("outputs", tf.image.convert_image_dtype(train_nodes['Outputs'][-1], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("alpha_summary"):
-    tf.compat.v1.summary.image("alphas", tf.image.convert_image_dtype(train_nodes['Alphas'], dtype=tf.uint8))
+    tf.compat.v1.summary.image("alphas", tf.image.convert_image_dtype(train_nodes['Alphas'][-1], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("inputs0_summary"):
     tf.compat.v1.summary.image("inputs0", tf.image.convert_image_dtype(train_nodes['Inputs'][:,:,:,:3], dtype=tf.uint8))
