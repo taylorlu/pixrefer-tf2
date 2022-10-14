@@ -320,7 +320,10 @@ class PixReferNet(ModelBuilder):
               predict_fake = create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs_FG'][cycle])
             else:
               predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs_FG'][cycle])
-        predict_fake /= 3
+        for cycle in range(3):
+          with tf.compat.v1.variable_scope("discriminator", reuse=True):
+            predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], fg_inputs[..., 3*cycle:3*(cycle+1)])
+        predict_fake /= 6
         nodes.update({'Predict_fake': predict_fake})
 
       # with tf.name_scope("real_target_discriminator"):
