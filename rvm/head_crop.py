@@ -70,7 +70,7 @@ for name in os.listdir(rootpath):
 for i, name in enumerate(os.listdir(rootpath)):
     img = cv2.imread(os.path.join(rootpath, name), cv2.IMREAD_UNCHANGED)
     head = img[min_face_y:max_face_y, min_face_x:max_face_x, :]
-    head = cv2.resize(head, [fixed_head_size, fixed_head_size])
+    head = cv2.resize(head, (fixed_head_size, fixed_head_size))
     img = img[min_y:max_y, min_x:max_x]
     cv2.imwrite(os.path.join(rootpath, name), img)
     cv2.imwrite(os.path.join(output_crop, name), head)
@@ -82,5 +82,5 @@ np.save('headcoordsize.npy', np.array([min_face_x-min_x, max_face_x-min_x, min_f
 # headcoord = np.load('headcoordsize.npy')
 # img = cv2.imread('111/0000.png')
 # head = cv2.imread('111_crop/0000.png')
-# img[headcoord[2]:headcoord[3], headcoord[0]:headcoord[1]] = cv2.resize(head, [headcoord[1]-headcoord[0], headcoord[3]-headcoord[2]])
+# img[headcoord[2]:headcoord[3], headcoord[0]:headcoord[1]] = cv2.resize(head, (headcoord[1]-headcoord[0], headcoord[3]-headcoord[2]))
 # cv2.imwrite('0.png', img)
