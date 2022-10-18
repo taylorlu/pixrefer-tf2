@@ -8,7 +8,7 @@ parser.add_argument("-s", '--scale', type=float, default=1.5, help='head crop re
 args = parser.parse_args()
 
 fixed_head_size = 512
-rootpath = os.path.basename(args.rvmpath)
+rootpath = args.rvmpath
 output_crop = rootpath+'_crop'
 os.makedirs(output_crop, exist_ok=True)
 
