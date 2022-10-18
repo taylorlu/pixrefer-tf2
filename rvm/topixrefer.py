@@ -17,5 +17,8 @@ for name in names:
     rgb = rgba[..., :3]
     alpha = np.tile(rgba[..., 3:], [1, 1, 3])
     render = cv2.imread(os.path.join(deca_output, f'{base}/orig_{base}_shape_images.jpg'))
+    render[-20:, :, :] = (rgb * (alpha/255))[-20:, :, :].astype(np.uint8)
+    render[:, :20, :] = (rgb * (alpha/255))[:, :20, :].astype(np.uint8)
+    render[:, -20:, :] = (rgb * (alpha/255))[:, -20:, :].astype(np.uint8)
     final = np.concatenate([rgb, render, alpha], axis=1)
     cv2.imwrite(os.path.join(output, name), final)

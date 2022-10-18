@@ -110,9 +110,6 @@ class PixReferDataGenerator(DataGenerator):
                                       axis=-1)
         example_img = example_img[rx:rsize+rx, ry:rsize+ry, :]
         example_img = cv2.resize(example_img, (self.img_size, self.img_size))
-        example_img[-20:, :, 3:6] = (example_img[:, :, :3] * example_img[:, :, 6:])[-20:, :, :]
-        example_img[:, :20, 3:6] = (example_img[:, :, :3] * example_img[:, :, 6:])[:, :20, :]
-        example_img[:, -20:, 3:6] = (example_img[:, :, :3] * example_img[:, :, 6:])[:, -20:, :]
         example_img = np.concatenate([example_img[:, :, :3], 
                                       example_img[:, :, 3:6], 
                                       example_img[:, :, 6:]], 
@@ -126,9 +123,6 @@ class PixReferDataGenerator(DataGenerator):
           img = np.concatenate([img[:, :self.img_size, :], img[:, self.img_size:self.img_size*2, :], img[:, self.img_size*2:, :]], axis=-1)
           img = img[rx:rsize+rx, ry:rsize+ry, :]
           img = cv2.resize(img, (self.img_size, self.img_size))
-          img[-20:, :, 3:6] = (img[:, :, :3] * img[:, :, 6:])[-20:, :, :]
-          img[:, :20, 3:6] = (img[:, :, :3] * img[:, :, 6:])[:, :20, :]
-          img[:, -20:, 3:6] = (img[:, :, :3] * img[:, :, 6:])[:, -20:, :]
           img = np.concatenate([img[:, :, :3], img[:, :, 3:6], img[:, :, 6:]], axis=1)
           imgs.append(img)
         imgs = np.array(imgs)
