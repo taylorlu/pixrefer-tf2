@@ -16,8 +16,7 @@ videopath = args.videopath
 outputpath = bodypath+'_final'
 os.makedirs(outputpath, exist_ok=True)
 
-center_x = 1000
-center_y = 320
+headcoord = np.load('headcoordsize.npy')
 center_x2 = int(args.center.split(',')[1])
 center_y2 = int(args.center.split(',')[0])
 
@@ -25,9 +24,11 @@ cap = cv2.VideoCapture(videopath)
 names = os.listdir(headpath)
 names2 = os.listdir(bodypath)
 
-trunk = len(names)//(len(names2)-1) + 1
-fwd = np.arange(len(names2)-1)
-bck = np.arange(len(names2)-1, 0, -1)
+start = 6*25 #0
+end = 12*25 #len(names2)
+trunk = len(names)//(end-start-1) + 1
+fwd = np.arange(start, end-1)
+bck = np.arange(end-1, start, -1)
 idx = np.array([]).astype(int)
 for t in range(trunk):
     if(t%2==0):
@@ -42,12 +43,11 @@ for i, name in enumerate(names):
     body_rgba[..., :3] = (body_rgba[..., :3] * (body_rgba[..., 3:]/255).astype(np.float)).astype(np.uint8)
 
     _, frame = cap.read()
+    _, frame = cap.read()
     if(frame is None):
         break
 
-    body_rgba[center_y-args.size//2: center_y-args.size//2+args.size, 
-              center_x-args.size//2: center_x-args.size//2+args.size,
-              :] = head_rgba
+    body_rgba[headcoord[2]:headcoord[3], headcoord[0]:headcoord[1]] = cv2.resize(head_rgba, (headcoord[1]-headcoord[0], headcoord[3]-headcoord[2]))
     body_rgba = cv2.resize(body_rgba, (int(body_rgba.shape[1]*args.scale), int(body_rgba.shape[0]*args.scale)))
 
     y1 = center_y2 - body_rgba.shape[0]//2
