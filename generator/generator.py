@@ -139,7 +139,7 @@ class PixReferDataGenerator(DataGenerator):
 
     dataset = tf.data.Dataset.from_generator(
         self.iterator,
-        output_types=(tf.float32, tf.float32, tf.float32, tf.float32),
+        output_types=(tf.float32, tf.float32),
         output_shapes=([self.img_size, self.img_size, 12], 
                         [self.img_size, self.img_size, 12])
     )

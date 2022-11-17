@@ -363,7 +363,7 @@ class PixReferNet(ModelBuilder):
       # abs(targets - outputs) => 0
       gen_loss_GAN = tf.reduce_mean(input_tensor=-tf.math.log(predict_fake + 1e-12))
       # gen_loss_GAN += tf.reduce_mean(-tf.log(predict_fake_target + 1e-12))
-      gen_loss_L1 = tf.reduce_mean(input_tensor=tf.abs(targets - tf.concat(outputs, axis=-1)))
+      gen_loss_L1 = tf.reduce_mean(input_tensor=tf.abs(targets[..., 3:] - tf.concat(outputs, axis=-1)))
       perceptual_loss = tf.reduce_mean(input_tensor=perceptual_loss)
       gen_loss = gen_loss_GAN * self.gan_weight + gen_loss_L1 * self.l1_weight + 10 * perceptual_loss
       nodes.update({'Gen_loss_GAN': gen_loss_GAN})
