@@ -56,7 +56,7 @@ class PixReferNet(ModelBuilder):
       self.sess = params.sess
       self.vgg_model_path = params.vgg_model_path
 
-  def build_network(self, inputs, fg_inputs, targets, trainable=True):
+  def build_network(self, inputs, targets, trainable=True):
 
     def discrim_conv(batch_input, out_channels, stride):
       padded_input = tf.pad(tensor=batch_input, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]], mode="CONSTANT")
@@ -277,38 +277,24 @@ class PixReferNet(ModelBuilder):
       return layers[-1]
 
     if(trainable):
-      nodes = {'Outputs': [], 'Alphas': [], 'Outputs_FG': []}
+      nodes = {'Outputs': []}
       with tf.compat.v1.variable_scope("generator"):
-        output = create_generator(inputs[..., :6], fg_inputs[..., :3], generator_outputs_channels=4)
-        rgb = output[:,:,:,:3]
-        alpha = (output[:,:,:,3:]+1)/2
-        alpha = tf.tile(alpha, [1,1,1,3])
-        output = rgb * alpha + targets[..., :3] * (1 - alpha)
-        output_fg = rgb * alpha + alpha - 1
+        output = create_generator(inputs[..., :6], targets[..., :3], generator_outputs_channels=3)
         nodes['Outputs'].append(output)
-        nodes['Alphas'].append(alpha)
-        nodes['Outputs_FG'].append(output_fg)
 
       for cycle in range(2):
         with tf.compat.v1.variable_scope("generator", reuse=True):
-          output = create_generator(inputs[..., 3*(cycle+1):3*(cycle+3)], output_fg, generator_outputs_channels=4)
-          rgb = output[:,:,:,:3]
-          alpha = (output[:,:,:,3:]+1)/2
-          alpha = tf.tile(alpha, [1,1,1,3])
-          output = rgb * alpha + targets[..., 3*(cycle+1):3*(cycle+2)] * (1 - alpha)
-          output_fg = rgb * alpha + alpha - 1
+          output = create_generator(inputs[..., 3*(cycle+1):3*(cycle+3)], output, generator_outputs_channels=3)
           nodes['Outputs'].append(output)
-          nodes['Alphas'].append(alpha)
-          nodes['Outputs_FG'].append(output_fg)
 
       # create two copies of discriminator, one for real pairs and one for fake pairs
       # they share the same underlying variables
       with tf.compat.v1.name_scope("real_discriminator"):
         with tf.compat.v1.variable_scope("discriminator"):
-          predict_real = create_discriminator(inputs[..., :3], fg_inputs[..., :3])
+          predict_real = create_discriminator(inputs[..., :3], targets[..., :3])
         for cycle in range(3):
           with tf.compat.v1.variable_scope("discriminator", reuse=True):
-            predict_real += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], fg_inputs[..., 3*(cycle+1):3*(cycle+2)])
+            predict_real += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], targets[..., 3*(cycle+1):3*(cycle+2)])
         predict_real /= 4
         nodes.update({'Predict_real': predict_real})
 
@@ -317,12 +303,12 @@ class PixReferNet(ModelBuilder):
         for cycle in range(3):
           with tf.compat.v1.variable_scope("discriminator", reuse=True):
             if(predict_fake is None):
-              predict_fake = create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs_FG'][cycle])
+              predict_fake = create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs'][cycle])
             else:
-              predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs_FG'][cycle])
+              predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs'][cycle])
         for cycle in range(3):
           with tf.compat.v1.variable_scope("discriminator", reuse=True):
-            predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], fg_inputs[..., 3*cycle:3*(cycle+1)])
+            predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], targets[..., 3*cycle:3*(cycle+1)])
         predict_fake /= 6
         nodes.update({'Predict_fake': predict_fake})
 
@@ -338,10 +324,10 @@ class PixReferNet(ModelBuilder):
 
       with tf.compat.v1.name_scope("vgg_perceptual"):
         with slim.arg_scope(vgg.vgg_arg_scope()):
-          tmp1 = tf.transpose(fg_inputs[..., 3:], [0, 3, 1, 2])
+          tmp1 = tf.transpose(targets[..., 3:], [0, 3, 1, 2])
           tmp1 = tf.reshape(tmp1, [-1, 3, 512, 512])
           tmp1 = tf.transpose(tmp1, [0, 2, 3, 1])
-          tmp2 = tf.transpose(tf.concat(nodes['Outputs_FG'], axis=-1), [0, 3, 1, 2])
+          tmp2 = tf.transpose(tf.concat(nodes['Outputs'], axis=-1), [0, 3, 1, 2])
           tmp2 = tf.reshape(tmp2, [-1, 3, 512, 512])
           tmp2 = tf.transpose(tmp2, [0, 2, 3, 1])
 
@@ -357,20 +343,12 @@ class PixReferNet(ModelBuilder):
     else:
       nodes = {}
       with tf.compat.v1.variable_scope("generator"):
-        output = create_generator(inputs, fg_inputs[..., :3], generator_outputs_channels=4)
-        rgb = output[:,:,:,:3]
-        alpha = (output[:,:,:,3:]+1)/2
-        alpha = tf.tile(alpha, [1,1,1,3])
-        output = rgb * alpha + targets * (1 - alpha)
-        output_fg = rgb * alpha + alpha - 1
-
+        output = create_generator(inputs, targets[..., :3], generator_outputs_channels=3)
         nodes.update({'Outputs': output})
-        nodes.update({'Alphas': alpha})
-        nodes.update({'Outputs_FG': output_fg})
 
     return nodes
 
-  def add_cost_function(self, predict_real, predict_fake, perceptual_loss, targets, outputs, alphas, masks):
+  def add_cost_function(self, predict_real, predict_fake, perceptual_loss, targets, outputs):
     nodes = {}
     with tf.compat.v1.name_scope("discriminator_loss"):
       # minimizing -tf.log will try to get inputs to 1
@@ -386,7 +364,6 @@ class PixReferNet(ModelBuilder):
       gen_loss_GAN = tf.reduce_mean(input_tensor=-tf.math.log(predict_fake + 1e-12))
       # gen_loss_GAN += tf.reduce_mean(-tf.log(predict_fake_target + 1e-12))
       gen_loss_L1 = tf.reduce_mean(input_tensor=tf.abs(targets - tf.concat(outputs, axis=-1)))
-      gen_loss_L1 += tf.reduce_mean(input_tensor=tf.abs(masks - tf.concat(alphas, axis=-1)))
       perceptual_loss = tf.reduce_mean(input_tensor=perceptual_loss)
       gen_loss = gen_loss_GAN * self.gan_weight + gen_loss_L1 * self.l1_weight + 10 * perceptual_loss
       nodes.update({'Gen_loss_GAN': gen_loss_GAN})
@@ -394,7 +371,7 @@ class PixReferNet(ModelBuilder):
       nodes.update({'Gen_loss': gen_loss})
       return nodes
 
-  def build_train_op(self, inputs, fg_inputs, targets, masks):
+  def build_train_op(self, inputs, targets):
 
     def preprocess(image):
       with tf.compat.v1.name_scope("preprocess"):
@@ -408,23 +385,18 @@ class PixReferNet(ModelBuilder):
 
     nodes = {}
     nodes.update({'Inputs': inputs})
-    nodes.update({'FGInputs': fg_inputs})
     nodes.update({'Targets': targets})
-    nodes.update({'Masks': masks})
     inputs = preprocess(inputs)
-    fg_inputs = preprocess(fg_inputs)
     targets = preprocess(targets)
 
-    network_dict = self.build_network(inputs, fg_inputs, targets, trainable=True)
+    network_dict = self.build_network(inputs, targets, trainable=True)
     nodes.update(network_dict)
 
     loss_dict = self.add_cost_function(nodes['Predict_real'], 
                                        nodes['Predict_fake'], 
                                        nodes['Perceptual_loss'], 
                                        targets, 
-                                       nodes['Outputs'], 
-                                       nodes['Alphas'], 
-                                       nodes['Masks'])
+                                       nodes['Outputs'])
     nodes.update(loss_dict)
     arr = []
     for outputs in nodes['Outputs']:
@@ -455,7 +427,7 @@ class PixReferNet(ModelBuilder):
     nodes.update({'Gen_grads_and_vars': gen_grads_and_vars})
     return nodes
 
-  def build_inference_op(self, inputs, fg_inputs, targets):
+  def build_inference_op(self, inputs, targets):
     def preprocess(image):
       with tf.compat.v1.name_scope("preprocess"):
         # [0, 1] => [-1, 1]
@@ -468,15 +440,12 @@ class PixReferNet(ModelBuilder):
 
     nodes = {}
     nodes.update({'Inputs': inputs})
-    nodes.update({'FGInputs': fg_inputs})
     nodes.update({'Targets': targets})
     inputs = preprocess(inputs)
-    fg_inputs = preprocess(fg_inputs)
     targets = preprocess(targets)
 
-    network_dict = self.build_network(inputs, fg_inputs, targets, trainable=False)
+    network_dict = self.build_network(inputs, targets, trainable=False)
     nodes.update(network_dict)
     nodes.update({"Outputs": deprocess(nodes['Outputs'])})
-    nodes.update({"Outputs_FG": deprocess(nodes['Outputs_FG'] + nodes['Alphas'] -1)})
 
     return nodes

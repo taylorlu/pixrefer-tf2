@@ -36,7 +36,7 @@ if (__name__ == '__main__'):
 
   os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
-  batch_size = 2
+  batch_size = 1
   ### Generator for training setting
   train_generator = PixReferDataGenerator(config_path)
   params = train_generator.params
@@ -94,13 +94,10 @@ if (__name__ == '__main__'):
     tf.compat.v1.summary.image("inputs1", tf.image.convert_image_dtype(train_nodes['Inputs'][... ,9:12], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("targets_summary"):
-    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,6:9], dtype=tf.uint8))
+    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,9:12], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("outputs_summary"):
     tf.compat.v1.summary.image("outputs", tf.image.convert_image_dtype(train_nodes['Outputs'][-1], dtype=tf.uint8))
-
-  with tf.compat.v1.name_scope("alpha_summary"):
-    tf.compat.v1.summary.image("alphas", tf.image.convert_image_dtype(train_nodes['Alphas'][-1], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("inputs0_summary"):
     tf.compat.v1.summary.image("inputs0", tf.image.convert_image_dtype(train_nodes['Inputs'][:,:,:,:3], dtype=tf.uint8))

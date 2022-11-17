@@ -131,14 +131,8 @@ class PixReferDataGenerator(DataGenerator):
         inputs = inputs.transpose((1, 2, 0, 3))
         inputs = inputs.reshape([self.img_size, self.img_size, 12])
         targets = imgs[:, :, :self.img_size, :]
-        masks = imgs[:, :, self.img_size*2:, :]
-        fg_inputs = targets * masks
-        fg_inputs = fg_inputs.transpose([1, 2, 0, 3]).reshape([self.img_size, self.img_size, 12])
 
-        yield inputs, \
-              fg_inputs, \
-              targets[1:, ...].transpose([1,2,0,3]).reshape([self.img_size, self.img_size, 9]), \
-              masks[1:, ...].transpose([1,2,0,3]).reshape([self.img_size, self.img_size, 9])
+        yield inputs, targets.transpose([1,2,0,3]).reshape([self.img_size, self.img_size, 12])
 
   def get_dataset(self):
     self.set_params(self.__params)
@@ -147,16 +141,12 @@ class PixReferDataGenerator(DataGenerator):
         self.iterator,
         output_types=(tf.float32, tf.float32, tf.float32, tf.float32),
         output_shapes=([self.img_size, self.img_size, 12], 
-                        [self.img_size, self.img_size, 12], 
-                        [self.img_size, self.img_size, 9], 
-                        [self.img_size, self.img_size, 9])
+                        [self.img_size, self.img_size, 12])
     )
 
     dataset = dataset.shuffle(self.shuffle_bufsize).repeat()
     dataset = dataset.padded_batch(self.batch_size,
                                    padded_shapes=([self.img_size, self.img_size, 12], 
-                                                  [self.img_size, self.img_size, 12], 
-                                                  [self.img_size, self.img_size, 9], 
-                                                  [self.img_size, self.img_size, 9]))
+                                                  [self.img_size, self.img_size, 12]))
 
     return dataset
