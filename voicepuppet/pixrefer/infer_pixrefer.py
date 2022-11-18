@@ -53,9 +53,8 @@ if (__name__ == '__main__'):
       vid2vidnet.set_params(params)
 
       inputs_holder = tf.compat.v1.placeholder(tf.float32, shape=[None, img_size, img_size, 6])
-      fg_inputs_holder = tf.compat.v1.placeholder(tf.float32, shape=[None, img_size, img_size, 3])
       targets_holder = tf.compat.v1.placeholder(tf.float32, shape=[None, img_size, img_size, 3])
-      vid2vid_nodes = vid2vidnet.build_inference_op(inputs_holder, fg_inputs_holder, targets_holder)
+      vid2vid_nodes = vid2vidnet.build_inference_op(inputs_holder, targets_holder)
 
     variables_to_restore = tf.compat.v1.global_variables()
     rec_varlist = {v.name[12:][:-2]: v 
@@ -64,30 +63,28 @@ if (__name__ == '__main__'):
     rec_saver = tf.compat.v1.train.Saver(var_list=rec_varlist)
 
     sess.run(tf.compat.v1.global_variables_initializer())
-    rec_saver.restore(sess, 'ckpt_pixrefer-2009/pixrefernet-130000')
+    rec_saver.restore(sess, 'ckpt_pixrefer/pixrefernet-120000')
 
     inputs = np.zeros([1, img_size, img_size, 6], dtype=np.float32)
-    fg_inputs = np.zeros([1, img_size, img_size, 3], dtype=np.float32)
+    ref_target = np.zeros([1, img_size, img_size, 3], dtype=np.float32)
 
     img = image_loader.get_data('0000.png')
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     inputs[0, :, :, 0:3] = img[:, img_size:img_size*2, :]
-    fg_inputs[0, :, :, 0:3] = img[:, :img_size, :] * img[:, img_size*2:, :]
+    ref_target[0, :, :, 0:3] = img[:, :img_size, :]
 
-    root = r'/mnt/workplace/DECA/TestVideo/results'
+    root = r'/mnt/workspace/DECA/TestVideo/results'
     for index in range(0, len(os.listdir(root))):
       img = image_loader.get_data(os.path.join(root, '{:04d}'.format(index), 'orig_{:04d}_shape_images.jpg'.format(index)))
       if (img is not None):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         inputs[0, ..., 3:6] = img
 
-        frames, last, alpha = sess.run([vid2vid_nodes['Outputs'], vid2vid_nodes['Outputs_FG'], vid2vid_nodes['Alphas']], 
-          feed_dict={inputs_holder: inputs, fg_inputs_holder: fg_inputs, targets_holder: bg_img[np.newaxis, ...]})
+        frames = sess.run(vid2vid_nodes['Outputs'], 
+          feed_dict={inputs_holder: inputs, targets_holder: ref_target})
+        ref_target = frames
 
         jpg = cv2.cvtColor((frames[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-        alpha = cv2.cvtColor((alpha[0, ...]*255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-        rgba = np.concatenate([jpg, alpha[..., :1]], axis=-1)
-        cv2.imwrite('output/{:04d}.png'.format(index), rgba)
+        cv2.imwrite('output/{:04d}.png'.format(index), jpg)
 
         inputs[0, ..., :3] = img
-        fg_inputs[0, :, :, 0:3] = frames[0, ...]
