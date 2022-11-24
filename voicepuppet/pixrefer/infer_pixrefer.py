@@ -49,6 +49,7 @@ if (__name__ == '__main__'):
       vid2vidnet = PixReferNet(config_path)
       params = vid2vidnet.params
       params.batch_size = 1
+      params.seq_len = 5
       params.add_hparam('is_training', False)
       vid2vidnet.set_params(params)
 
@@ -63,7 +64,7 @@ if (__name__ == '__main__'):
     rec_saver = tf.compat.v1.train.Saver(var_list=rec_varlist)
 
     sess.run(tf.compat.v1.global_variables_initializer())
-    rec_saver.restore(sess, 'ckpt_pixrefer/pixrefernet-120000')
+    rec_saver.restore(sess, 'ckpt_pixrefer/pixrefernet-20000')
 
     inputs = np.zeros([1, img_size, img_size, 6], dtype=np.float32)
     ref_target = np.zeros([1, img_size, img_size, 3], dtype=np.float32)
@@ -73,7 +74,7 @@ if (__name__ == '__main__'):
     inputs[0, :, :, 0:3] = img[:, img_size:img_size*2, :]
     ref_target[0, :, :, 0:3] = img[:, :img_size, :]
 
-    root = r'/mnt/workspace/DECA/TestVideo/results'
+    root = r'/mnt/workspace/myDECA/TestVideo/results'
     for index in range(0, len(os.listdir(root))):
       img = image_loader.get_data(os.path.join(root, '{:04d}'.format(index), 'orig_{:04d}_shape_images.jpg'.format(index)))
       if (img is not None):

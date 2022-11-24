@@ -46,6 +46,7 @@ class PixReferNet(ModelBuilder):
     self.decay_rate = params.training['decay_rate']
     self.decay_steps = params.training['decay_steps']
     self.batch_size = params.batch_size
+    self.seq_len = params.seq_len
 
     self.separable_conv = params.separable_conv
     self.ngf = params.ngf
@@ -282,7 +283,7 @@ class PixReferNet(ModelBuilder):
         output = create_generator(inputs[..., :6], targets[..., :3], generator_outputs_channels=3)
         nodes['Outputs'].append(output)
 
-      for cycle in range(2):
+      for cycle in range(self.seq_len-1):
         with tf.compat.v1.variable_scope("generator", reuse=True):
           output = create_generator(inputs[..., 3*(cycle+1):3*(cycle+3)], output, generator_outputs_channels=3)
           nodes['Outputs'].append(output)
@@ -292,24 +293,24 @@ class PixReferNet(ModelBuilder):
       with tf.compat.v1.name_scope("real_discriminator"):
         with tf.compat.v1.variable_scope("discriminator"):
           predict_real = create_discriminator(inputs[..., :3], targets[..., :3])
-        for cycle in range(3):
+        for cycle in range(self.seq_len):
           with tf.compat.v1.variable_scope("discriminator", reuse=True):
             predict_real += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], targets[..., 3*(cycle+1):3*(cycle+2)])
-        predict_real /= 4
+        predict_real /= (self.seq_len+1)
         nodes.update({'Predict_real': predict_real})
 
       with tf.compat.v1.name_scope("fake_discriminator"):
         predict_fake = None
-        for cycle in range(3):
+        for cycle in range(self.seq_len):
           with tf.compat.v1.variable_scope("discriminator", reuse=True):
             if(predict_fake is None):
               predict_fake = create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs'][cycle])
             else:
               predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], nodes['Outputs'][cycle])
-        for cycle in range(3):
+        for cycle in range(self.seq_len):
           with tf.compat.v1.variable_scope("discriminator", reuse=True):
             predict_fake += create_discriminator(inputs[..., 3*(cycle+1):3*(cycle+2)], targets[..., 3*cycle:3*(cycle+1)])
-        predict_fake /= 6
+        predict_fake /= 2*self.seq_len
         nodes.update({'Predict_fake': predict_fake})
 
       # with tf.name_scope("real_target_discriminator"):

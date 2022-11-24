@@ -71,7 +71,7 @@ class PixReferDataGenerator(DataGenerator):
     params.add_hparam('batch_size', 2)
     params.add_hparam('img_size', 512)
     params.add_hparam('crop_ratio', 0.9)
-    params.add_hparam('seq_len', 8)
+    params.add_hparam('seq_len', 5)
     return params
 
   @property
@@ -94,15 +94,14 @@ class PixReferDataGenerator(DataGenerator):
     for line in self.data_list:
       folder, img_count = line.strip().split('|')
       img_count = int(img_count)
-      slice = 4
 
-      for i in range(slice-1, img_count-slice+1):
+      for i in range(self.seq_len, img_count-self.seq_len):
         fwd_bwd = random.choice([-1, 1])
         rsize = random.randint(int(self.img_size*self.crop_ratio), self.img_size)
         rx = random.randint(0, self.img_size - rsize)
         ry = random.randint(0, self.img_size - rsize)
 
-        example_img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(i+fwd_bwd*3)))
+        example_img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(i+fwd_bwd*self.seq_len)))
         example_img = cv2.cvtColor(example_img, cv2.COLOR_BGR2RGB)
         example_img = np.concatenate([example_img[:, :self.img_size, :], 
                                       example_img[:, self.img_size:self.img_size*2, :], 
@@ -117,7 +116,7 @@ class PixReferDataGenerator(DataGenerator):
 
         imgs = []
         imgs.append(example_img)
-        for k in range(2, -1, -1):
+        for k in range(self.seq_len-1, -1, -1):
           img = image_loader.get_data(os.path.join(folder, '{:04d}.png'.format(i+fwd_bwd*k)))
           img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
           img = np.concatenate([img[:, :self.img_size, :], img[:, self.img_size:self.img_size*2, :], img[:, self.img_size*2:, :]], axis=-1)
@@ -129,10 +128,10 @@ class PixReferDataGenerator(DataGenerator):
 
         inputs = imgs[:, :, self.img_size:self.img_size*2, :]
         inputs = inputs.transpose((1, 2, 0, 3))
-        inputs = inputs.reshape([self.img_size, self.img_size, 12])
+        inputs = inputs.reshape([self.img_size, self.img_size, 3*(self.seq_len+1)])
         targets = imgs[:, :, :self.img_size, :]
 
-        yield inputs, targets.transpose([1,2,0,3]).reshape([self.img_size, self.img_size, 12])
+        yield inputs, targets.transpose([1,2,0,3]).reshape([self.img_size, self.img_size, 3*(self.seq_len+1)])
 
   def get_dataset(self):
     self.set_params(self.__params)
@@ -140,13 +139,13 @@ class PixReferDataGenerator(DataGenerator):
     dataset = tf.data.Dataset.from_generator(
         self.iterator,
         output_types=(tf.float32, tf.float32),
-        output_shapes=([self.img_size, self.img_size, 12], 
-                        [self.img_size, self.img_size, 12])
+        output_shapes=([self.img_size, self.img_size, 3*(self.seq_len+1)], 
+                        [self.img_size, self.img_size, 3*(self.seq_len+1)])
     )
 
     dataset = dataset.shuffle(self.shuffle_bufsize).repeat()
     dataset = dataset.padded_batch(self.batch_size,
-                                   padded_shapes=([self.img_size, self.img_size, 12], 
-                                                  [self.img_size, self.img_size, 12]))
+                                   padded_shapes=([self.img_size, self.img_size, 3*(self.seq_len+1)], 
+                                                  [self.img_size, self.img_size, 3*(self.seq_len+1)]))
 
     return dataset
