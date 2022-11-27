@@ -97,7 +97,7 @@ if (__name__ == '__main__'):
     tf.compat.v1.summary.image("inputs1", tf.image.convert_image_dtype(train_nodes['Inputs'][... ,3*seq_len:], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("targets_summary"):
-    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,3*seq_len:], dtype=tf.uint8))
+    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,3*(seq_len-1):], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("outputs_summary"):
     tf.compat.v1.summary.image("outputs", tf.image.convert_image_dtype(train_nodes['Outputs'][-1], dtype=tf.uint8))
