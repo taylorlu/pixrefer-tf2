@@ -36,12 +36,14 @@ if (__name__ == '__main__'):
 
   os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
-  batch_size = 2
+  batch_size = 1
+  seq_len = 5
   ### Generator for training setting
   train_generator = PixReferDataGenerator(config_path)
   params = train_generator.params
   params.dataset_path = params.train_dataset_path
   params.batch_size = batch_size
+  params.seq_len = seq_len
   train_generator.set_params(params)
   train_dataset = train_generator.get_dataset()
 
@@ -63,6 +65,7 @@ if (__name__ == '__main__'):
   params.add_hparam('summary_step', 500)
   params.add_hparam('summary_dir', 'log/summary_pixrefer')
   params.batch_size = batch_size
+  params.seq_len = seq_len
   params.add_hparam('is_training', True)
   params.sess = sess
   params.vgg_model_path = os.path.join(params.model_dir, 'vgg_16.ckpt')
@@ -91,10 +94,10 @@ if (__name__ == '__main__'):
   tf.compat.v1.summary.scalar("generator_loss_L1", train_nodes['Gen_loss_L1'])
 
   with tf.compat.v1.name_scope("inputs1_summary"):
-    tf.compat.v1.summary.image("inputs1", tf.image.convert_image_dtype(train_nodes['Inputs'][... ,9:12], dtype=tf.uint8))
+    tf.compat.v1.summary.image("inputs1", tf.image.convert_image_dtype(train_nodes['Inputs'][... ,3*seq_len:], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("targets_summary"):
-    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,6:9], dtype=tf.uint8))
+    tf.compat.v1.summary.image("targets", tf.image.convert_image_dtype(train_nodes['Targets'][... ,3*seq_len:], dtype=tf.uint8))
 
   with tf.compat.v1.name_scope("outputs_summary"):
     tf.compat.v1.summary.image("outputs", tf.image.convert_image_dtype(train_nodes['Outputs'][-1], dtype=tf.uint8))

@@ -49,6 +49,7 @@ if (__name__ == '__main__'):
       vid2vidnet = PixReferNet(config_path)
       params = vid2vidnet.params
       params.batch_size = 1
+      params.seq_len = 5
       params.add_hparam('is_training', False)
       vid2vidnet.set_params(params)
 
