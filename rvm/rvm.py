@@ -16,14 +16,15 @@ args = parser.parse_args()
 
 print(args.inputpath)
 if(os.path.isdir(args.inputpath)):
+    output = os.path.basename(args.inputpath)+'_rvm'
     img = cv2.imread(os.path.join(args.inputpath, os.listdir(args.inputpath)[0]))
     input_resize = (img.shape[1], img.shape[0])
 else:
+    output = os.path.basename(args.inputpath).split('.')[0]+'_rvm'
     cap = cv2.VideoCapture(args.inputpath)
     _, frame = cap.read()
     input_resize = (frame.shape[1], frame.shape[0])
 
-output = os.path.basename(args.inputpath).split('.')[0]+'_final2'
 convert_video(model, 
     input_source=args.inputpath,            # A video file or an image sequence directory.
     input_resize=input_resize,              # [Optional] Resize the input (also the output).
