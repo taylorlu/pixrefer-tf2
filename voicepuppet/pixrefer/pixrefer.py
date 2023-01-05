@@ -134,13 +134,13 @@ class PixReferNet(ModelBuilder):
 
       return layers[-1]
 
-    def create_target_discriminator(discrim_inputs):
+    def create_video_discriminator(discrim_inputs):
       n_layers = 3
       layers = []
 
       # layer_1: [batch, 256, 256, in_channels * 2] => [batch, 128, 128, ndf]
       with tf.compat.v1.variable_scope("layer_1"):
-        convolved = discrim_conv(discrim_inputs, self.ndf, stride=2)
+        convolved = tf.compat.v1.layers.conv3d(discrim_inputs, self.ndf, kernel_size=(3, 4, 4), strides=(1, 2, 2), padding="same", kernel_initializer=tf.compat.v1.random_normal_initializer(0, 0.02))
         rectified = lrelu(convolved, 0.2)
         layers.append(rectified)
 
@@ -151,14 +151,15 @@ class PixReferNet(ModelBuilder):
         with tf.compat.v1.variable_scope("layer_%d" % (len(layers) + 1)):
           out_channels = self.ndf * min(2 ** (i + 1), 8)
           stride = 1 if i == n_layers - 1 else 2  # last layer here has stride 1
-          convolved = discrim_conv(layers[-1], out_channels, stride=stride)
+          convolved = tf.compat.v1.layers.conv3d(layers[-1], out_channels, kernel_size=(2, 4, 4), strides=(1, stride, stride), padding="same", kernel_initializer=tf.compat.v1.random_normal_initializer(0, 0.02))
           normalized = batchnorm(convolved)
           rectified = lrelu(normalized, 0.2)
           layers.append(rectified)
 
       # layer_5: [batch, 31, 31, ndf * 8] => [batch, 30, 30, 1]
       with tf.compat.v1.variable_scope("layer_%d" % (len(layers) + 1)):
-        convolved = discrim_conv(rectified, out_channels=1, stride=1)
+        convolved = tf.compat.v1.layers.conv3d(rectified, 1, kernel_size=(self.seq_len, 4, 4), strides=(self.seq_len, stride, stride))
+        convolved = tf.reshape(convolved, [self.batch_size, convolved.shape[2], convolved.shape[3], 1])
         output = tf.sigmoid(convolved)
         layers.append(output)
 
@@ -327,15 +328,19 @@ class PixReferNet(ModelBuilder):
         predict_fake /= 2*self.seq_len
         nodes.update({'Predict_fake': predict_fake})
 
-      # with tf.name_scope("real_target_discriminator"):
-      #   with tf.variable_scope("target_discriminator"):
-      #     predict_real = create_target_discriminator(fg_inputs[:, 384:, :, 3:])
-      #     nodes.update({'Predict_real_target': predict_real})
+      with tf.name_scope("real_video_discriminator"):
+        with tf.variable_scope("video_discriminator"):
+          fg_inputs_trans = tf.reshape(fg_inputs[..., 3:], [self.batch_size, 512, 512, -1, 3])
+          fg_inputs_trans = tf.transpose(fg_inputs_trans, [0, 3, 1, 2, 4])
+          predict_real = create_video_discriminator(fg_inputs_trans)
+          nodes.update({'Predict_real_video': predict_real})
 
-      # with tf.name_scope("fake_target_discriminator"):
-      #   with tf.variable_scope("target_discriminator", reuse=True):
-      #     predict_fake = create_target_discriminator(output_fg[:, 384:, :, :])
-      #     nodes.update({'Predict_fake_target': predict_fake})
+      with tf.name_scope("fake_video_discriminator"):
+        with tf.variable_scope("video_discriminator", reuse=True):
+          output_fg_trans = tf.reshape(tf.concat(nodes['Outputs_FG'], axis=-1), [self.batch_size, 512, 512, -1, 3])
+          output_fg_trans = tf.transpose(output_fg_trans, [0, 3, 1, 2, 4])
+          predict_fake = create_video_discriminator(output_fg_trans)
+          nodes.update({'Predict_fake_video': predict_fake})
 
       with tf.compat.v1.name_scope("vgg_perceptual"):
         with slim.arg_scope(vgg.vgg_arg_scope()):
@@ -371,13 +376,14 @@ class PixReferNet(ModelBuilder):
 
     return nodes
 
-  def add_cost_function(self, predict_real, predict_fake, perceptual_loss, targets, outputs, alphas, masks):
+  def add_cost_function(self, predict_real, predict_fake, predict_real_video, predict_fake_video, perceptual_loss, targets, outputs, alphas, masks):
     nodes = {}
     with tf.compat.v1.name_scope("discriminator_loss"):
       # minimizing -tf.log will try to get inputs to 1
       # predict_real => 1
       # predict_fake => 0
       discrim_loss = tf.reduce_mean(input_tensor=-(tf.math.log(predict_real + 1e-12)*2 + tf.math.log(1 - predict_fake + 1e-12)))
+      discrim_loss += tf.reduce_mean(input_tensor=-(tf.math.log(predict_real_video + 1e-12)*2 + tf.math.log(1 - predict_fake_video + 1e-12)))
       # discrim_loss += tf.reduce_mean(-(tf.log(predict_real_target + 1e-12)*2 + tf.log(1 - predict_fake_target + 1e-12)))
       nodes.update({'Discrim_loss': discrim_loss})
 
@@ -385,6 +391,7 @@ class PixReferNet(ModelBuilder):
       # predict_fake => 1
       # abs(targets - outputs) => 0
       gen_loss_GAN = tf.reduce_mean(input_tensor=-tf.math.log(predict_fake + 1e-12))
+      gen_loss_GAN += tf.reduce_mean(input_tensor=-tf.math.log(predict_fake_video + 1e-12))
       # gen_loss_GAN += tf.reduce_mean(-tf.log(predict_fake_target + 1e-12))
       gen_loss_L1 = tf.reduce_mean(input_tensor=tf.abs(targets - tf.concat(outputs, axis=-1)))
       gen_loss_L1 += tf.reduce_mean(input_tensor=tf.abs(masks - tf.concat(alphas, axis=-1)))
@@ -421,6 +428,8 @@ class PixReferNet(ModelBuilder):
 
     loss_dict = self.add_cost_function(nodes['Predict_real'], 
                                        nodes['Predict_fake'], 
+                                       nodes['Predict_real_video'], 
+                                       nodes['Predict_fake_video'], 
                                        nodes['Perceptual_loss'], 
                                        targets, 
                                        nodes['Outputs'], 
