@@ -13,6 +13,7 @@ outputpath = bodypath+'_final'
 os.makedirs(outputpath, exist_ok=True)
 
 names = os.listdir(headpath)
+names.sort()
 
 start = 6*25 #0
 end = 12*25 #len(names2)
